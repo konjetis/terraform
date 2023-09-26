@@ -1,6 +1,13 @@
 terraform {
+  backend "s3" {
+    bucket = "sept-22-terraform-state-bucket-123"
+    key    = "path/terraform.tfsstate"
+    region = "us-east-1"
+  }
+
   required_providers {
     aws = {
+
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
@@ -13,9 +20,9 @@ provider "aws" {
 }
 
 # Create a VPC
-resource "aws_vpc" "example" {
-  cidr_block = "10.0.0.0/16"
-}
+# resource "aws_vpc" "example" {
+#   cidr_block = "10.0.0.0/16"
+# }
 
 # resource "aws_instance" "demo-instance" {
 #   ami           = "ami-04cb4ca688797756f"
@@ -41,7 +48,7 @@ resource "aws_vpc" "east-vpc" {
     Name = "east-vpc"
 }
 }
-#creting the subnet
+#creating the subnet
 
 resource "aws_subnet" "east_subnet_1a" {
   vpc_id     = aws_vpc.east-vpc.id
@@ -70,8 +77,10 @@ resource "aws_subnet" "east_subnet_1c" {
   }
 }
 #instance 
+
 resource "aws_instance" "web-1" {
-  ami           ="ami-053b0d53c279acc90"
+  ami           =var.web-1-amid-id
+  #"ami-053b0d53c279acc90"
   instance_type = "t2.micro"
   key_name = aws_key_pair.useast_keys.id
   subnet_id = aws_subnet.east_subnet_1a.id
@@ -184,35 +193,42 @@ resource "aws_route_table_association" "RT_asso_1c" {
   route_table_id = aws_route_table.useast_RT_private.id
 }
 # #target group
-# resource "aws_lb_target_group" "card-website-TG-terraform" {
-#   name     = "card-website-TG-terraform"
-#   port     = 80
-#   protocol = "HTTP"
-#   vpc_id   = aws_vpc.useast_vpc.id
-# }
+
+ resource "aws_lb_target_group" "card-website-TG-terraform" {
+  name     = "card-website-TG-terraform"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.us.east_vpc.id
+}
 # #attaching the target group
-# resource "aws_lb_target_group_attachment" "TG-instance-1" {
-#   target_group_arn = aws_lb_target_group.card-website-TG-terraform.arn
-#   target_id        = aws_instance.web-1.id
-#   port             = 80
-# }
-# resource "aws_lb_target_group_attachment" "TG-instance-2" {
-#   target_group_arn = aws_lb_target_group.card-website-TG-terraform.arn
-#   target_id        = aws_instance.web-2.id
-#   port             = 80
-# }
-# resource "aws_lb_target_group_attachment" "TG-instance-3" {
-#   target_group_arn = aws_lb_target_group.card-website-TG-terraform.arn
-#   target_id        = aws_instance.web-3.id
-#   port             = 80
-# }
-# # creating the load balancer
-# resource "aws_lb" "card-website-LB-terraform"{
-#   name               = "card-website-LB-terraform"
-#   internal           = false
-#   load_balancer_type = "application"
-#   security_groups    = [aws_security_group.allow_ssh_http.id]
-#   subnets            = [aws_subnet.us_subnet_1a.aws_subnet.us_subnet_1b.id]
+resource "aws_lb_target_group_attachment" "TG-instance-1" {
+  target_group_arn = aws_lb_target_group.card-website-TG-terraform.arn
+  target_id        = aws_instance.web-1.id
+  port             = 80
+}
+resource "aws_lb_target_group_attachment" "TG-instance-2" {
+  target_group_arn = aws_lb_target_group.card-website-TG-terraform.arn
+  target_id        = aws_instance.web-2.id
+  port             = 80
+}
+resource "aws_lb_target_group_attachment" "TG-instance-3" {
+  target_group_arn = aws_lb_target_group.card-website-TG-terraform.arn
+  target_id        = aws_instance.web-3.id
+  port             = 80
+}
+# creating the load balancer(LB)
+
+resource "aws_lb" "card-website-LB-terraform"{
+  name               = "card-website-LB-terraform"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.allow_ssh_http.id]
+  subnets            = [aws_subnet.us_subnet_1a.id, aws_subnet.us_subnet_1b.id]
+
+  tags={
+    Environment="production"
+  }
+}
 
 #   enable_deletion_protection = true
 
@@ -222,78 +238,85 @@ resource "aws_route_table_association" "RT_asso_1c" {
 #     enabled = true
 #   }
 # }
-# #creating the listner
-# resource "aws_lb_listener" "card-website-listner" {
-#   load_balancer_arn = aws_lb.cardwebsite-LB-terraform.arn
-#   port              = "80"
-#   protocol          = "HTTP"
+#creating the listner
+resource "aws_lb_listener" "card-website-listner" {
+  load_balancer_arn = aws_lb.card-website-LB-terraform.arn
+  port              = "80"
+  protocol          = "HTTP"
   
 
-#   default_action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.card-website-TG-terraform.arn
-#   }
-# }
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.card-website-TG-terraform.arn
+  }
+}
 
+#####creating the instances via ASG and we will attach the LB to it
+# create Launch template
 
-# #creating the instances via ASG and we will attach the LB to it
-# #create Launch template
-# resource "aws_launch_template""LT-demo-terraform" {
-#   #name = "LT-demo-terraform"
-#   image_id="ami-053b0d53c279acc90"
-#   instance_type="t2.micro"
-#   key_name= aws_key_pair.useast_keys.id
-#   vpc_security_group_ids = [aws_security_group.allow_ssh_http.id]
-#   user_data = filebase64("example.sh")
+resource "aws_launch_template""LT-demo-terraform" {
+  #name = "LT-demo-terraform"
+  image_id="ami-053b0d53c279acc90"
+  instance_type="t2.micro"
+  key_name= aws_key_pair.useast_keys.id
+  vpc_security_group_ids = [aws_security_group.allow_ssh_http.id]
+  user_data = filebase64("example.sh")
   
-#   tag_specifications {
-#     resource_type = "instance"
+  tag_specifications {
+    resource_type = "instance"
 
-#     tags = {
-#       Name = "demo-instance by terra"
-#     }
-#   }
+    tags = {
+      Name = "demo-instance by terra"
+    }
+  }
   
-# }
-# #asg creation
-#  resource "aws_autoscaling_group" "demo-asg" {
-#   vpc_zone_identifier= [aws_subnet.east_subnet_1a.id,aws_subnet.east_subnet_1b.id]
-#   desired_capacity   = 2
-#   max_size           = 5
-#   min_size           = 2
-#   name="demo-asg-terraform"
-#   target_group_arns = [aws_lb_target_group.card-website-TG-terraform-2.arn]
-#   launch_template {
-#     id      = aws_launch_template.LT-demo-terraform.id
-#     version = "$Latest"
-#   }
-#  }
+}
+#asg creation
+
+ resource "aws_autoscaling_group" "demo-asg" {
+  vpc_zone_identifier= [aws_subnet.east_subnet_1a.id,aws_subnet.east_subnet_1b.id]
+  desired_capacity   = 2
+  max_size           = 5
+  min_size           = 2
+  name="demo-as-terraform"
+  target_group_arns = [aws_lb_target_group.card-website-TG-terraform-2.arn]
+  
+  launch_template {
+    id      = aws_launch_template.LT-demo-terraform.id
+    version = "$Latest"
+  }
+ }
 #  #LB with ASG
-#   resource "aws_lb_target_group" "card-website-TG-terraform-2" {
-#   name     = "card-website-TG-terraform-2"
-#   port     = 80
-#   protocol = "HTTP"
-#   vpc_id   = aws_vpc.useast_vpc.id
-# }
-# #creating the listner
-# resource "aws_lb_listener" "card-website-listner-2.arn" {
-#   load_balancer_arn = aws_lb.card-website-LB-terraform-2.arn
-#   port              = "80"
-#   protocol          = "HTTP"
+
+  resource "aws_lb_target_group" "card-website-TG-terraform-2" {
+  name     = "card-website-TG-terraform-2"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.useast_vpc.id
+}
+#creating the listner
+resource "aws_lb_listener" "card-website-listner-2" {
+  load_balancer_arn = aws_lb.card-website-LB-terraform-2.arn
+  port              = "80"
+  protocol          = "HTTP"
   
 
-#   default_action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.card-website-TG-terraform-2.arn
-#   }
-# } 
-# resource "aws_lb" "card-website-LB-terraform-2"{
-#   name               = "card-website-LB-terraform-2"
-#   internal           = false
-#   load_balancer_type = "application"
-#   security_groups    = [aws_security_group.allow_ssh_http.id]
-#   subnets            = [aws_subnet.us_subnet_1a.aws_subnet.us_subnet_1b.id]
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.card-website-TG-terraform-2.arn
+  }
+} 
+resource "aws_lb" "card-website-LB-terraform-2"{
+  name               = "card-website-LB-terraform-2"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.allow_ssh_http.id]
+  subnets            = [aws_subnet.us_subnet_1a.id,aws_subnet.us_subnet_1b.id]
 
+  tags={
+    Environment="production"
+  }
+}
 #   enable_deletion_protection = true
 
 #   access_logs {
