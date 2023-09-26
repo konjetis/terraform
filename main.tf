@@ -79,7 +79,7 @@ resource "aws_subnet" "east_subnet_1c" {
 #instance 
 
 resource "aws_instance" "web-1" {
-  ami           =var.web-1-amid-id
+  ami           =var.web-1-ami-id
   #"ami-053b0d53c279acc90"
   instance_type = "t2.micro"
   key_name = aws_key_pair.useast_keys.id
@@ -91,7 +91,8 @@ resource "aws_instance" "web-1" {
   }
 }
 resource "aws_instance" "web-2" {
-  ami           = "ami-053b0d53c279acc90"
+  ami           = var.web-1-ami-id
+  #"ami-053b0d53c279acc90"
   instance_type = "t2.micro"
   key_name = aws_key_pair.useast_keys.id
   subnet_id = aws_subnet.east_subnet_1b.id
@@ -101,7 +102,8 @@ resource "aws_instance" "web-2" {
   }
 }
 resource "aws_instance" "web-3" {
-  ami           = "ami-0899a01fa13081b12"
+  ami           = var.web-1-ami-id
+  #"ami-0899a01fa13081b12"
   instance_type = "t2.micro"
   key_name = aws_key_pair.useast_keys.id
   subnet_id = aws_subnet.east_subnet_1b.id
@@ -198,7 +200,7 @@ resource "aws_route_table_association" "RT_asso_1c" {
   name     = "card-website-TG-terraform"
   port     = 80
   protocol = "HTTP"
-  vpc_id   = aws_vpc.us.east_vpc.id
+  vpc_id   = aws_vpc.east-vpc.id
 }
 # #attaching the target group
 resource "aws_lb_target_group_attachment" "TG-instance-1" {
@@ -223,8 +225,8 @@ resource "aws_lb" "card-website-LB-terraform"{
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.allow_ssh_http.id]
-  subnets            = [aws_subnet.us_subnet_1a.id, aws_subnet.us_subnet_1b.id]
-
+  subnets            = [aws_subnet.east_subnet_1a.id, aws_subnet.east_subnet_1b.id]
+   
   tags={
     Environment="production"
   }
@@ -292,7 +294,8 @@ resource "aws_launch_template""LT-demo-terraform" {
   name     = "card-website-TG-terraform-2"
   port     = 80
   protocol = "HTTP"
-  vpc_id   = aws_vpc.useast_vpc.id
+  vpc_id   = aws_vpc.east-vpc.id
+  
 }
 #creating the listner
 resource "aws_lb_listener" "card-website-listner-2" {
@@ -311,7 +314,7 @@ resource "aws_lb" "card-website-LB-terraform-2"{
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.allow_ssh_http.id]
-  subnets            = [aws_subnet.us_subnet_1a.id,aws_subnet.us_subnet_1b.id]
+  subnets            = [aws_subnet.east_subnet_1a.id,aws_subnet.east_subnet_1b.id]
 
   tags={
     Environment="production"
