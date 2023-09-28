@@ -43,7 +43,7 @@ provider "aws" {
 #creating the new infrastrcuture
 # creating the vpc
 resource "aws_vpc" "east-vpc" {
-  cidr_block = "10.0.0.0/16"
+  cidr_block = "10.10.0.0/16"
   tags = {
     Name = "east-vpc"
 }
@@ -52,7 +52,7 @@ resource "aws_vpc" "east-vpc" {
 
 resource "aws_subnet" "east_subnet_1a" {
   vpc_id     = aws_vpc.east-vpc.id
-  cidr_block = "10.0.0.0/24"
+  cidr_block = "10.10.0.0/24"
   availability_zone = "us-east-1a"
   map_public_ip_on_launch = "true"
   tags = {
@@ -61,7 +61,7 @@ resource "aws_subnet" "east_subnet_1a" {
 }
 resource "aws_subnet" "east_subnet_1b" {
   vpc_id     = aws_vpc.east-vpc.id
-  cidr_block = "10.0.1.0/24"
+  cidr_block = "10.10.1.0/24"
   availability_zone = "us-east-1b"
   map_public_ip_on_launch ="true" 
   tags = {
@@ -70,7 +70,7 @@ resource "aws_subnet" "east_subnet_1b" {
 }
 resource "aws_subnet" "east_subnet_1c" {
   vpc_id     = aws_vpc.east-vpc.id
-  cidr_block = "10.0.2.0/24"
+  cidr_block = "10.10.2.0/24"
   availability_zone = "us-east-1c"
   tags = {
     Name = "east_subnet_1c"
